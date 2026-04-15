@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { BottomBar } from '@/components/layout/BottomBar'
 import { TopBar } from '@/components/layout/TopBar'
@@ -12,13 +13,20 @@ import { Loader2 } from 'lucide-react'
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { loading, currentMember } = useAuth()
   const { setUnreadCount } = useAppStore()
+  const router = useRouter()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !currentMember) {
+      router.push('/login')
+    }
+  }, [loading, currentMember, router])
 
   useEffect(() => {
     if (!currentMember) return
 
     const supabase = createClient()
 
-    // Fetch unread notification count
     supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
@@ -28,7 +36,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUnreadCount(count ?? 0)
       })
 
-    // Subscribe to new notifications
     const channel = supabase
       .channel('notifications')
       .on(
@@ -50,7 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [currentMember, setUnreadCount])
 
-  if (loading) {
+  if (loading || !currentMember) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-matcha" />
