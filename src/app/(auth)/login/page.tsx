@@ -25,7 +25,8 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      toast.error('Identifiants incorrects')
+      toast.error(error.message || 'Identifiants incorrects')
+      console.error('Login error:', error)
       setLoading(false)
       return
     }
