@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/stores/useAppStore'
 import { Breadcrumb } from '@/components/layout/Breadcrumb'
-import { StatusBadge } from '@/components/sites/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, Plus, Trash2, CalendarDays, User, MapPin } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -24,12 +24,14 @@ export default function CalendarPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [loading, setLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [selectedMaint, setSelectedMaint] = useState<Maintenance | null>(null)
   const { currentMember } = useAppStore()
   const supabase = createClient()
 
-  // Form state
+  // Create form state
   const [formSiteId, setFormSiteId] = useState('')
   const [formTitle, setFormTitle] = useState('')
   const [formDesc, setFormDesc] = useState('')
@@ -38,26 +40,24 @@ export default function CalendarPage() {
   const [formRecurring, setFormRecurring] = useState(false)
   const [formSaving, setFormSaving] = useState(false)
 
-  useEffect(() => {
+  const loadData = async () => {
     if (!currentMember) return
-
-    Promise.all([
+    const [mRes, sRes, memRes] = await Promise.all([
       supabase.from('maintenances').select('*, site:sites(client_name), assignee:members!maintenances_assigned_to_fkey(first_name, last_name)').eq('company_id', currentMember.company_id),
       supabase.from('sites').select('id, client_name').eq('company_id', currentMember.company_id),
       supabase.from('members').select('*').eq('company_id', currentMember.company_id),
-    ]).then(([mRes, sRes, memRes]) => {
-      if (mRes.data) setMaintenances(mRes.data as Maintenance[])
-      if (sRes.data) setSites(sRes.data as Site[])
-      if (memRes.data) setMembers(memRes.data as Member[])
-      setLoading(false)
-    })
-  }, [currentMember])
+    ])
+    if (mRes.data) setMaintenances(mRes.data as Maintenance[])
+    if (sRes.data) setSites(sRes.data as Site[])
+    if (memRes.data) setMembers(memRes.data as Member[])
+    setLoading(false)
+  }
+
+  useEffect(() => { loadData() }, [currentMember])
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
-
-  // Pad start to Monday
   const startDay = monthStart.getDay()
   const padStart = (startDay === 0 ? 6 : startDay - 1)
   const padDays = Array.from({ length: padStart }, (_, i) => {
@@ -65,7 +65,6 @@ export default function CalendarPage() {
     d.setDate(d.getDate() - padStart + i)
     return d
   })
-
   const allDays = [...padDays, ...days]
 
   const getMaintenancesForDay = (date: Date) =>
@@ -79,9 +78,14 @@ export default function CalendarPage() {
 
   const handleDayClick = (date: Date) => {
     if (currentMember?.role !== 'admin') return
-    setSelectedDate(date)
     setFormDate(format(date, 'yyyy-MM-dd'))
-    setDialogOpen(true)
+    setCreateOpen(true)
+  }
+
+  const handleMaintenanceClick = (e: React.MouseEvent, maint: Maintenance) => {
+    e.stopPropagation()
+    setSelectedMaint(maint)
+    setDetailOpen(true)
   }
 
   const handleCreate = async () => {
@@ -107,18 +111,34 @@ export default function CalendarPage() {
     }
 
     toast.success('Entretien planifié')
-    setDialogOpen(false)
+    setCreateOpen(false)
     setFormTitle('')
     setFormDesc('')
     setFormSiteId('')
     setFormAssignee('')
     setFormRecurring(false)
     setFormSaving(false)
-
-    // Reload
-    const { data } = await supabase.from('maintenances').select('*, site:sites(client_name), assignee:members!maintenances_assigned_to_fkey(first_name, last_name)').eq('company_id', currentMember.company_id)
-    if (data) setMaintenances(data as Maintenance[])
+    loadData()
   }
+
+  const handleDelete = async () => {
+    if (!selectedMaint) return
+
+    const { error } = await supabase.from('maintenances').delete().eq('id', selectedMaint.id)
+
+    if (error) {
+      toast.error('Erreur lors de la suppression')
+      return
+    }
+
+    toast.success('Entretien supprimé')
+    setDeleteOpen(false)
+    setDetailOpen(false)
+    setSelectedMaint(null)
+    loadData()
+  }
+
+  const isAdmin = currentMember?.role === 'admin'
 
   return (
     <div>
@@ -126,56 +146,10 @@ export default function CalendarPage() {
 
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Calendrier des entretiens</h1>
-        {currentMember?.role === 'admin' && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <Button className="rounded-full bg-matcha hover:bg-matcha-dark text-white gap-2" onClick={() => { setFormDate(format(new Date(), 'yyyy-MM-dd')); setDialogOpen(true) }}>
-              <Plus className="w-4 h-4" /> Planifier
-            </Button>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Planifier un entretien</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label>Site *</Label>
-                  <Select value={formSiteId} onValueChange={(v) => setFormSiteId(v ?? "")}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                    <SelectContent>
-                      {sites.map((s) => <SelectItem key={s.id} value={s.id}>{s.client_name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Titre *</Label>
-                  <Input placeholder="Purge hivernage" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea placeholder="Détails..." value={formDesc} onChange={(e) => setFormDesc(e.target.value)} rows={2} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Date *</Label>
-                  <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Assigné à</Label>
-                  <Select value={formAssignee} onValueChange={(v) => setFormAssignee(v ?? "")}>
-                    <SelectTrigger><SelectValue placeholder="Non assigné" /></SelectTrigger>
-                    <SelectContent>
-                      {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="recurring" checked={formRecurring} onChange={(e) => setFormRecurring(e.target.checked)} className="rounded" />
-                  <Label htmlFor="recurring" className="text-sm">Récurrent (annuel)</Label>
-                </div>
-                <Button className="w-full rounded-full bg-matcha hover:bg-matcha-dark text-white" onClick={handleCreate} disabled={formSaving || !formSiteId || !formTitle || !formDate}>
-                  {formSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer l\'entretien'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+        {isAdmin && (
+          <Button className="rounded-full bg-matcha hover:bg-matcha-dark text-white gap-2" onClick={() => { setFormDate(format(new Date(), 'yyyy-MM-dd')); setCreateOpen(true) }}>
+            <Plus className="w-4 h-4" /> Planifier
+          </Button>
         )}
       </div>
 
@@ -217,10 +191,14 @@ export default function CalendarPage() {
                     </span>
                     <div className="space-y-0.5 mt-1">
                       {dayMaintenances.slice(0, 2).map((m) => (
-                        <div key={m.id} className="flex items-center gap-1">
+                        <button
+                          key={m.id}
+                          className="flex items-center gap-1 w-full text-left hover:bg-gray-100 rounded px-0.5 transition-colors"
+                          onClick={(e) => handleMaintenanceClick(e, m)}
+                        >
                           <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusColor[m.status]}`} />
                           <span className="text-[10px] text-gray-600 truncate">{m.title}</span>
-                        </div>
+                        </button>
                       ))}
                       {dayMaintenances.length > 2 && (
                         <span className="text-[10px] text-muted-foreground">+{dayMaintenances.length - 2}</span>
@@ -233,6 +211,117 @@ export default function CalendarPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Create Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Planifier un entretien</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>Site *</Label>
+              <Select value={formSiteId} onValueChange={(v) => setFormSiteId(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>
+                  {sites.map((s) => <SelectItem key={s.id} value={s.id}>{s.client_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Titre *</Label>
+              <Input placeholder="Purge hivernage" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea placeholder="Détails..." value={formDesc} onChange={(e) => setFormDesc(e.target.value)} rows={2} />
+            </div>
+            <div className="space-y-2">
+              <Label>Date *</Label>
+              <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Assigné à</Label>
+              <Select value={formAssignee} onValueChange={(v) => setFormAssignee(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder="Non assigné" /></SelectTrigger>
+                <SelectContent>
+                  {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="recurring" checked={formRecurring} onChange={(e) => setFormRecurring(e.target.checked)} className="rounded" />
+              <Label htmlFor="recurring" className="text-sm">Récurrent (annuel)</Label>
+            </div>
+            <Button className="w-full rounded-full bg-matcha hover:bg-matcha-dark text-white" onClick={handleCreate} disabled={formSaving || !formSiteId || !formTitle || !formDate}>
+              {formSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Créer l'entretien"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedMaint?.title}</DialogTitle>
+          </DialogHeader>
+          {selectedMaint && (
+            <div className="space-y-4 pt-2">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-gray-900">{(selectedMaint.site as unknown as { client_name: string })?.client_name}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-gray-900">{format(new Date(selectedMaint.scheduled_date), 'dd MMMM yyyy', { locale: fr })}</span>
+                </div>
+                {selectedMaint.assignee && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-gray-900">{(selectedMaint.assignee as unknown as { first_name: string; last_name: string }).first_name} {(selectedMaint.assignee as unknown as { first_name: string; last_name: string }).last_name}</span>
+                  </div>
+                )}
+                {selectedMaint.description && (
+                  <p className="text-sm text-muted-foreground bg-gray-50 rounded-lg p-3">{selectedMaint.description}</p>
+                )}
+                {selectedMaint.is_recurring && (
+                  <p className="text-xs text-matcha font-medium">Récurrent (annuel)</p>
+                )}
+              </div>
+
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  className="w-full rounded-full text-red-500 border-red-200 hover:bg-red-50 gap-2"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="w-4 h-4" /> Supprimer cet entretien
+                </Button>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet entretien ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L&apos;entretien &quot;{selectedMaint?.title}&quot; sera supprimé définitivement. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-500 hover:bg-red-600" onClick={handleDelete}>
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
