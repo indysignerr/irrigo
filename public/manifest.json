@@ -1,0 +1,21 @@
+{
+  "name": "Irrigo",
+  "short_name": "Irrigo",
+  "description": "Gestion de réseaux d'arrosage automatique",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#9ca763",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
