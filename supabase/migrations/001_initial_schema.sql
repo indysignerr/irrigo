@@ -337,13 +337,23 @@ ALTER PUBLICATION supabase_realtime ADD TABLE pending_changes;
 -- =====================
 -- STORAGE BUCKET
 -- =====================
-INSERT INTO storage.buckets (id, name, public) VALUES ('irrigo', 'irrigo', true);
+INSERT INTO storage.buckets (id, name, public) VALUES ('irrigo', 'irrigo', true)
+  ON CONFLICT (id) DO NOTHING;
 
-CREATE POLICY "Authenticated users can upload" ON storage.objects
-  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'irrigo');
+DO $$ BEGIN
+  CREATE POLICY "Authenticated users can upload" ON storage.objects
+    FOR INSERT TO authenticated WITH CHECK (bucket_id = 'irrigo');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Anyone can view" ON storage.objects
-  FOR SELECT USING (bucket_id = 'irrigo');
+DO $$ BEGIN
+  CREATE POLICY "Anyone can view" ON storage.objects
+    FOR SELECT USING (bucket_id = 'irrigo');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Users can delete own uploads" ON storage.objects
-  FOR DELETE TO authenticated USING (bucket_id = 'irrigo');
+DO $$ BEGIN
+  CREATE POLICY "Users can delete own uploads" ON storage.objects
+    FOR DELETE TO authenticated USING (bucket_id = 'irrigo');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
