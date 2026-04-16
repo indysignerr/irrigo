@@ -13,18 +13,24 @@ import {
   Users,
   CheckCircle,
   Droplets,
+  Wrench,
+  FileCheck,
+  FileText,
 } from 'lucide-react'
 import { useAppStore } from '@/stores/useAppStore'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/sites', icon: MapPin, label: 'Sites' },
+  { href: '/interventions', icon: Wrench, label: 'Interventions' },
   { href: '/map', icon: Map, label: 'Carte' },
   { href: '/calendar', icon: Calendar, label: 'Calendrier' },
   { href: '/notifications', icon: Bell, label: 'Notifications' },
 ]
 
 const adminItems = [
+  { href: '/templates', icon: FileCheck, label: 'Templates' },
+  { href: '/reports', icon: FileText, label: 'Rapports' },
   { href: '/validations', icon: CheckCircle, label: 'Validations' },
   { href: '/team', icon: Users, label: 'Équipe' },
   { href: '/settings', icon: Settings, label: 'Paramètres' },

@@ -3,13 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, MapPin, Map, Bell, User } from 'lucide-react'
+import { LayoutDashboard, MapPin, Wrench, Bell, User } from 'lucide-react'
 import { useAppStore } from '@/stores/useAppStore'
 
 const items = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Accueil' },
   { href: '/sites', icon: MapPin, label: 'Sites' },
-  { href: '/map', icon: Map, label: 'Carte' },
+  { href: '/interventions', icon: Wrench, label: 'Interventions' },
   { href: '/notifications', icon: Bell, label: 'Alertes' },
   { href: '/settings', icon: User, label: 'Profil' },
 ]

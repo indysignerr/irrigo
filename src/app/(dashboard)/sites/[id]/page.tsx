@@ -9,6 +9,7 @@ import { Breadcrumb } from '@/components/layout/Breadcrumb'
 import { ZoneAccordion } from '@/components/sites/ZoneAccordion'
 import { StatusBadge, UrgencyBadge, categoryLabel } from '@/components/sites/StatusBadge'
 import { CommentFeed } from '@/components/comments/CommentFeed'
+import { ZonePhotosHistory } from '@/components/sites/ZonePhotosHistory'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -238,6 +239,16 @@ export default function SiteDetailPage() {
                   <input type="file" accept="image/*" className="hidden" onChange={handlePlanUpload} />
                 </label>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Historique photos par zone */}
+          <Card className="rounded-2xl shadow-sm border border-gray-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Historique photos par zone</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ZonePhotosHistory zones={zones} />
             </CardContent>
           </Card>
         </div>

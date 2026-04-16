@@ -181,3 +181,96 @@ export interface Notification {
   is_read: boolean
   created_at: string
 }
+
+// ===========================
+// PHASE 1: Interventions
+// ===========================
+
+export type InterventionStatus = 'in_progress' | 'completed' | 'cancelled'
+
+export interface InterventionTemplate {
+  id: string
+  company_id: string
+  name: string
+  description?: string
+  icon?: string
+  created_by?: string
+  created_at: string
+  updated_at: string
+  items?: TemplateChecklistItem[]
+}
+
+export interface TemplateChecklistItem {
+  id: string
+  template_id: string
+  label: string
+  order_index: number
+  is_required: boolean
+}
+
+export interface Intervention {
+  id: string
+  company_id: string
+  site_id: string
+  technician_id?: string
+  template_id?: string
+  title: string
+  description?: string
+  status: InterventionStatus
+  started_at: string
+  completed_at?: string
+  duration_minutes?: number
+  client_signature?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+  // Joined
+  site?: Site
+  technician?: Member
+  template?: InterventionTemplate
+  checklist?: InterventionChecklistItem[]
+  materials?: InterventionMaterial[]
+  photos?: InterventionPhoto[]
+}
+
+export interface InterventionChecklistItem {
+  id: string
+  intervention_id: string
+  label: string
+  order_index: number
+  is_checked: boolean
+  notes?: string
+  checked_at?: string
+}
+
+export interface InterventionMaterial {
+  id: string
+  intervention_id: string
+  name: string
+  quantity: number
+  unit: string
+  unit_price?: number
+  notes?: string
+  created_at: string
+}
+
+export interface InterventionPhoto {
+  id: string
+  intervention_id: string
+  zone_id?: string
+  url: string
+  annotation_data?: Record<string, unknown>
+  caption?: string
+  taken_at: string
+}
+
+export interface ZonePhoto {
+  id: string
+  zone_id: string
+  url: string
+  caption?: string
+  taken_by?: string
+  taken_at: string
+  // Joined
+  photographer?: Member
+}
